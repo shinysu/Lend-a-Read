@@ -5,9 +5,22 @@ import os
 
 
 def create_app():
+    # Get the correct path to frontend/build
+    backend_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.dirname(backend_dir)
+    static_folder = os.path.join(project_root, 'frontend', 'build')
+
+    print(f"📁 Backend dir: {backend_dir}")
+    print(f"📁 Project root: {project_root}")
+    print(f"📁 Static folder: {static_folder}")
+    print(f"📁 Static folder exists: {os.path.exists(static_folder)}")
+
+    if os.path.exists(static_folder):
+        print(f"📁 Files in build: {os.listdir(static_folder)}")
+
     app = Flask(
         __name__,
-        static_folder='../frontend/build',
+        static_folder=static_folder,
         static_url_path=''
     )
 
@@ -51,20 +64,33 @@ def create_app():
             'data': get_db_stats()
         })
 
+    # Serve React App
     @app.route('/')
     def serve():
-        return send_from_directory(app.static_folder, 'index.html')
+        if os.path.exists(os.path.join(static_folder, 'index.html')):
+            return send_from_directory(static_folder, 'index.html')
+        return jsonify({
+            'message': 'Lend-a-Read API is running',
+            'note': 'Frontend build not found'
+        })
 
     @app.route('/<path:path>')
     def serve_static(path):
-        file_path = os.path.join(app.static_folder, path)
+        file_path = os.path.join(static_folder, path)
         if os.path.exists(file_path):
-            return send_from_directory(app.static_folder, path)
-        return send_from_directory(app.static_folder, 'index.html')
+            return send_from_directory(static_folder, path)
+        if os.path.exists(os.path.join(static_folder, 'index.html')):
+            return send_from_directory(static_folder, 'index.html')
+        return jsonify({
+            'message': 'Lend-a-Read API is running',
+            'note': 'Frontend build not found'
+        })
 
     @app.errorhandler(404)
     def not_found(error):
-        return send_from_directory(app.static_folder, 'index.html')
+        if os.path.exists(os.path.join(static_folder, 'index.html')):
+            return send_from_directory(static_folder, 'index.html')
+        return jsonify({'error': 'Not Found'}), 404
 
     @app.errorhandler(500)
     def internal_error(error):
@@ -73,10 +99,10 @@ def create_app():
 
     return app
 
-app = create_app()
+
+application = create_app()
 
 if __name__ == '__main__':
-    app = create_app()
     port = int(os.environ.get('PORT', 5000))
     debug = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
-    app.run(host='0.0.0.0', port=port, debug=debug)
+    application.run(host='0.0.0.0', port=port, debug=debug)
